@@ -15,6 +15,7 @@ namespace LeaveManagementSystem.Web.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IMapper _mapper;
+        private const string NameExistValidationMessage = "This leave type already exists in the database.";
 
         public LeaveTypesController(ApplicationDbContext context, IMapper mapper)
         {
@@ -73,6 +74,11 @@ namespace LeaveManagementSystem.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(LeaveTypeCreateVM leaveTypeCreate)
         {
+            if (await CheckIfLeaveTypeNameExist(leaveTypeCreate.Name))
+            {
+                ModelState.AddModelError(nameof(leaveTypeCreate.Name), NameExistValidationMessage);
+            }
+
             if (ModelState.IsValid)
             {
                 var leaveType = _mapper.Map<LeaveType>(leaveTypeCreate);
@@ -111,6 +117,11 @@ namespace LeaveManagementSystem.Web.Controllers
             if (id != leaveTypeEdit.Id)
             {
                 return NotFound();
+            }
+
+            if (await CheckIfLeaveTypeNameExistForEdit(leaveTypeEdit))
+            {
+                ModelState.AddModelError(nameof(leaveTypeEdit.Name), NameExistValidationMessage);
             }
 
             if (ModelState.IsValid)
@@ -176,6 +187,18 @@ namespace LeaveManagementSystem.Web.Controllers
         {
 
             return _context.LeaveTypes.Any(e => e.Id == id);
+        }
+
+        private async Task<bool> CheckIfLeaveTypeNameExist(string name)
+        {
+            var lowercaseName = name.ToLower();
+            return await _context.LeaveTypes.AnyAsync(q => q.Name.ToLower().Equals(lowercaseName));
+        }
+
+        private async Task<bool> CheckIfLeaveTypeNameExistForEdit(LeaveTypeEditVM leaveTypeEdit)
+        {
+            var lowercaseName = leaveTypeEdit.Name.ToLower();
+            return await _context.LeaveTypes.AnyAsync(q => q.Name.ToLower().Equals(lowercaseName) && q.Id != leaveTypeEdit.Id);
         }
     }
 }
